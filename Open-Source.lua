@@ -37,6 +37,7 @@ local InfoTab = Window:Tab({ Title = "Info", Icon = "info" })
 local ESP_Tab = Window:Tab({ Title = "ESP", Icon = "app-window" })
 local TP_Tab  = Window:Tab({ Title = "TP", Icon = "zap" })
 local Local_Tab = Window:Tab({ Title = "Local Player", Icon = "user" })
+local Aim_Tab = Window:Tab({ Title = "Aim", Icon = "target" }) -- added missing Aim tab
 
 local HttpService = game:GetService("HttpService")
 
@@ -68,7 +69,7 @@ local function LoadDiscordInfo()
             Title = result.guild.name,
             Desc = ' <font color="#52525b"></font> Member Count : ' .. tostring(result.approximate_member_count) ..
                 '\n <font color="#16a34a"></font> Online Count : ' .. tostring(result.approximate_presence_count),
-            Image = "https://cdn.discordapp.com/icons/" .. result.guild.id .. "/" .. result.guild.icon .. ".png?size=1024",
+            Image = (result.guild.icon and ("https://cdn.discordapp.com/icons/" .. result.guild.id .. "/" .. result.guild.icon .. ".png?size=1024")) or "triangle-alert",
             ImageSize = 42,
         })
 
@@ -94,7 +95,9 @@ local function LoadDiscordInfo()
         InfoTab:Button({
             Title = "Copy Discord Invite",
             Callback = function()
-                setclipboard("https://discord.gg/" .. InviteCode)
+                if setclipboard then
+                    pcall(setclipboard, "https://discord.gg/" .. InviteCode)
+                end
             end
         })
     else
@@ -123,10 +126,11 @@ _G.GunESPEnabled = false
 _G.WalkSpeedValue = 16
 _G.InfiniteJumpEnabled = false
 _G.NoclipEnabled = false
+_G.AutoAimEnabled = false
 
 -- Utility
 local function safeNewDrawing(class, props)
-    local ok, obj = pcall(function() return Drawing.new(class) end)
+    local ok, obj = pcall(function() return Drawing and Drawing.new(class) end)
     if not ok or not obj then return nil end
     if props then
         for k,v in pairs(props) do
@@ -138,7 +142,7 @@ end
 
 local function worldToScreen(pos)
     local ok, sp, onScreen = pcall(function() return Camera:WorldToViewportPoint(pos) end)
-    if not ok then return Vector2.new(0,0), false end
+    if not ok or not sp then return Vector2.new(0,0), false end
     return Vector2.new(sp.X, sp.Y), onScreen
 end
 
@@ -155,8 +159,8 @@ local function detectRole(player)
     if char then
         for _, tool in pairs(char:GetChildren()) do
             if tool:IsA("Tool") then
-                if tool.Name=="Knife" then role="Murderer"
-                elseif tool.Name=="Gun" then role="Sheriff" end
+                if tool.Name == "Knife" then role = "Murderer"
+                elseif tool.Name == "Gun" then role = "Sheriff" end
             end
         end
     end
@@ -178,22 +182,26 @@ local function createPlayerESP(player)
     highlight.Enabled = false
     ESP[player] = {Line=line, Box=box, NameTag=nameTag, Highlight=highlight}
     player.CharacterAdded:Connect(function(char)
-        highlight.Parent = char
-        highlight.Adornee = char
+        if highlight then
+            highlight.Parent = char
+            highlight.Adornee = char
+        end
     end)
     if player.Character then
-        highlight.Parent = player.Character
-        highlight.Adornee = player.Character
+        if highlight then
+            highlight.Parent = player.Character
+            highlight.Adornee = player.Character
+        end
     end
 end
 
 local function destroyPlayerESP(player)
     local data = ESP[player]
     if not data then return end
-    if data.Line then data.Line:Remove() end
-    if data.Box then data.Box:Remove() end
-    if data.NameTag then data.NameTag:Remove() end
-    if data.Highlight then data.Highlight:Destroy() end
+    if data.Line then pcall(function() data.Line:Remove() end) end
+    if data.Box then pcall(function() data.Box:Remove() end) end
+    if data.NameTag then pcall(function() data.NameTag:Remove() end) end
+    if data.Highlight then pcall(function() data.Highlight:Destroy() end) end
     ESP[player] = nil
 end
 
@@ -219,7 +227,13 @@ end)
 -- Teleports
 local function teleportToGun()
     local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if hrp and currentGun then hrp.CFrame = currentGun.CFrame + Vector3.new(0,3,0) end
+    if hrp and currentGun then
+        if currentGun:IsA("BasePart") then
+            hrp.CFrame = currentGun.CFrame + Vector3.new(0,3,0)
+        elseif currentGun.PrimaryPart then
+            hrp.CFrame = currentGun.PrimaryPart.CFrame + Vector3.new(0,3,0)
+        end
+    end
 end
 
 local function teleportBehind(target)
@@ -234,17 +248,23 @@ end
 local function getSheriff()
     for _, p in pairs(Players:GetPlayers()) do
         if p ~= LocalPlayer then
-            if (p.Backpack:FindFirstChild("Gun")) or (p.Character and p.Character:FindFirstChild("Gun")) then return p end
+            local bp = p:FindFirstChild("Backpack")
+            local hasGun = (bp and bp:FindFirstChild("Gun")) or (p.Character and p.Character:FindFirstChild("Gun"))
+            if hasGun then return p end
         end
     end
+    return nil
 end
 
 local function getMurderer()
     for _, p in pairs(Players:GetPlayers()) do
         if p ~= LocalPlayer then
-            if (p.Backpack:FindFirstChild("Knife")) or (p.Character and p.Character:FindFirstChild("Knife")) then return p end
+            local bp = p:FindFirstChild("Backpack")
+            local hasKnife = (bp and bp:FindFirstChild("Knife")) or (p.Character and p.Character:FindFirstChild("Knife"))
+            if hasKnife then return p end
         end
     end
+    return nil
 end
 
 -- WalkSpeed
@@ -311,16 +331,33 @@ RunService.RenderStepped:Connect(function()
             if data.Highlight then data.Highlight.Enabled=false end
         else
             local role = detectRole(player)
-            if data.Highlight then data.Highlight.FillColor=ROLE_COLORS[role]; data.Highlight.Enabled=true end
+            if data.Highlight then
+                data.Highlight.FillColor = ROLE_COLORS[role] or ROLE_COLORS.Innocent
+                data.Highlight.Enabled = true
+            end
             if head and hrp then
                 local top2D, onTop = worldToScreen(head.Position+Vector3.new(0,0.5,0))
                 local bottom2D, onBottom = worldToScreen(hrp.Position-Vector3.new(0,2.5,0))
                 if onTop and onBottom then
-                    local height=math.abs(top2D.Y-bottom2D.Y)
-                    local width=height/2
-                    if data.Box then data.Box.Position=Vector2.new(top2D.X-width/2,top2D.Y); data.Box.Size=Vector2.new(width,height); data.Box.Color=ROLE_COLORS[role]; data.Box.Visible=true end
-                    if data.NameTag then data.NameTag.Position=top2D-Vector2.new(0,15); data.NameTag.Color=(role=="Innocent") and Color3.fromRGB(0,0,0) or ROLE_COLORS[role]; data.NameTag.Visible=(role~="Innocent") end
-                    if data.Line then data.Line.From=Vector2.new(Camera.ViewportSize.X/2,0); data.Line.To=Vector2.new(top2D.X,top2D.Y); data.Line.Color=ROLE_COLORS[role]; data.Line.Visible=true end
+                    local height = math.abs(top2D.Y-bottom2D.Y)
+                    local width = height/2
+                    if data.Box then
+                        data.Box.Position = Vector2.new(top2D.X-width/2, top2D.Y)
+                        data.Box.Size = Vector2.new(width, height)
+                        data.Box.Color = ROLE_COLORS[role] or ROLE_COLORS.Innocent
+                        data.Box.Visible = true
+                    end
+                    if data.NameTag then
+                        data.NameTag.Position = top2D - Vector2.new(0,15)
+                        data.NameTag.Color = (role=="Innocent") and Color3.fromRGB(0,0,0) or (ROLE_COLORS[role] or ROLE_COLORS.Innocent)
+                        data.NameTag.Visible = (role~="Innocent")
+                    end
+                    if data.Line then
+                        data.Line.From = Vector2.new(Camera.ViewportSize.X/2,0)
+                        data.Line.To = Vector2.new(top2D.X, top2D.Y)
+                        data.Line.Color = ROLE_COLORS[role] or ROLE_COLORS.Innocent
+                        data.Line.Visible = true
+                    end
                 else
                     if data.Box then data.Box.Visible=false end
                     if data.NameTag then data.NameTag.Visible=false end
@@ -329,11 +366,20 @@ RunService.RenderStepped:Connect(function()
             end
         end
     end
+
     if _G.GunESPEnabled and currentGun then
-        local pos,onScreen=Camera:WorldToViewportPoint(currentGun.Position)
-        if onScreen then
-            if gunBox then gunBox.Position=Vector2.new(pos.X-12,pos.Y-12); gunBox.Size=Vector2.new(24,24); gunBox.Color=Color3.fromRGB(255,255,0); gunBox.Visible=true end
-            if gunLine then gunLine.From=Vector2.new(Camera.ViewportSize.X/2,0); gunLine.To=Vector2.new(pos.X,pos.Y); gunLine.Color=Color3.fromRGB(255,255,0); gunLine.Visible=true end
+        local pos3, onScreen = pcall(function() return Camera:WorldToViewportPoint(currentGun.Position) end)
+        -- `pcall` above returns ok, Vector3, bool so handle accordingly
+        local ok, screenVec, visible = pos3, nil, nil
+        if ok then
+            screenVec = select(2, Camera:WorldToViewportPoint(currentGun.Position))
+            visible = select(3, Camera:WorldToViewportPoint(currentGun.Position))
+        end
+        -- fallback simpler approach
+        local vec, vis = Camera:WorldToViewportPoint((currentGun.Position or (currentGun.PrimaryPart and currentGun.PrimaryPart.Position) or Vector3.new()))
+        if vis then
+            if gunBox then gunBox.Position=Vector2.new(vec.X-12,vec.Y-12); gunBox.Size=Vector2.new(24,24); gunBox.Color=Color3.fromRGB(255,255,0); gunBox.Visible=true end
+            if gunLine then gunLine.From=Vector2.new(Camera.ViewportSize.X/2,0); gunLine.To=Vector2.new(vec.X,vec.Y); gunLine.Color=Color3.fromRGB(255,255,0); gunLine.Visible=true end
         else
             if gunBox then gunBox.Visible=false end
             if gunLine then gunLine.Visible=false end
@@ -343,3 +389,43 @@ RunService.RenderStepped:Connect(function()
         if gunLine then gunLine.Visible=false end
     end
 end)
+
+-- Aim toggle in Aim_Tab
+Aim_Tab:Toggle({
+    Title = "Auto Aim",
+    Default = false,
+    Callback = function(state)
+        _G.AutoAimEnabled = state
+
+        if state then
+            task.spawn(function()
+                while _G.AutoAimEnabled do
+                    task.wait(0.1)
+                    local char = LocalPlayer.Character
+                    if char and char:FindFirstChild("Gun") then
+                        local murderer = getMurderer()
+                        if murderer and murderer.Character and murderer.Character:FindFirstChild("Head") then
+                            local headPos = murderer.Character.Head.Position
+                            local args = {
+                                1,
+                                Vector3.new(headPos.X, headPos.Y, headPos.Z),
+                                "AH2"
+                            }
+
+                            local gun = char:FindFirstChild("Gun")
+                            if gun and gun:FindFirstChild("KnifeLocal") and gun.KnifeLocal:FindFirstChild("CreateBeam") then
+                                local createBeam = gun.KnifeLocal:FindFirstChild("CreateBeam")
+                                local rf = createBeam and createBeam:FindFirstChild("RemoteFunction")
+                                if rf then
+                                    pcall(function()
+                                        rf:InvokeServer(unpack(args))
+                                    end)
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+})
