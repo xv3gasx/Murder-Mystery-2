@@ -34,7 +34,7 @@ Window:EditOpenButton({
 
 -- Tabs
 local InfoTab = Window:Tab({ Title = "Info", Icon = "info" })
-local AMain_Tab = Window:Tab({ Title = "Main", Icon = "target" })
+local Main_Tab = Window:Tab({ Title = "Main", Icon = "target" })
 local ESP_Tab = Window:Tab({ Title = "ESP", Icon = "app-window" })
 local TP_Tab  = Window:Tab({ Title = "TP", Icon = "zap" })
 local Local_Tab = Window:Tab({ Title = "Local Player", Icon = "user" })
