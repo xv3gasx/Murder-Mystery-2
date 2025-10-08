@@ -34,11 +34,10 @@ Window:EditOpenButton({
 
 -- Tabs
 local InfoTab = Window:Tab({ Title = "Info", Icon = "info" })
+local AMain_Tab = Window:Tab({ Title = "Main", Icon = "target" })
 local ESP_Tab = Window:Tab({ Title = "ESP", Icon = "app-window" })
 local TP_Tab  = Window:Tab({ Title = "TP", Icon = "zap" })
 local Local_Tab = Window:Tab({ Title = "Local Player", Icon = "user" })
-local Aim_Tab = Window:Tab({ Title = "Aim", Icon = "target" }) -- added missing Aim tab
-
 local HttpService = game:GetService("HttpService")
 
 InfoTab:Divider()
@@ -126,7 +125,7 @@ _G.GunESPEnabled = false
 _G.WalkSpeedValue = 16
 _G.InfiniteJumpEnabled = false
 _G.NoclipEnabled = false
-_G.AutoAimEnabled = false
+_G.KillMurdererEnabled = false
 
 -- Utility
 local function safeNewDrawing(class, props)
@@ -391,15 +390,15 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- Aim toggle in Aim_Tab
-Aim_Tab:Toggle({
-    Title = "Auto Aim",
+Main_Tab:Toggle({
+    Title = "Kill Murderer(need a gun)",
     Default = false,
     Callback = function(state)
-        _G.AutoAimEnabled = state
+        _G.KillMurdererEnabled = state
 
         if state then
             task.spawn(function()
-                while _G.AutoAimEnabled do
+                while _G.KillMurdererEnabled do
                     task.wait(0.1)
                     local char = LocalPlayer.Character
                     if char and char:FindFirstChild("Gun") then
