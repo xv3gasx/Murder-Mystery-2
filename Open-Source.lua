@@ -11,7 +11,7 @@ WindUI:Notify({
 })
 
 local Window = WindUI:CreateWindow({
-    Title = "discord.gg/foxname",
+    Title = "discord.gg/v8ZPq4y2nD",
     Author = "by: x.v3gas.x",
     Theme = "Dark",
     Size = UDim2.fromOffset(540, 390),
