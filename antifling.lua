@@ -24,5 +24,3 @@ RunService.Stepped:Connect(function()
         end
     end
 end)
-
-print("[AntiFling] Enabled.")
