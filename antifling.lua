@@ -1,5 +1,3 @@
--- Standalone AntiFling (copy-paste & run)
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
