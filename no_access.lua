@@ -1,0 +1,1 @@
+-- Do not share our scripts like its your own script. contact x.v3gas.x via Discord if you want to post it
