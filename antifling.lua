@@ -4,7 +4,7 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local Controller = {}
 
-local AntiFlingConnection = nil
+local AntiFlingConnection
 local OriginalCollision = setmetatable({}, {
     __mode = "k",
 })
