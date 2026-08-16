@@ -1,3 +1,4 @@
 { "bans": [
-{"username":"blac_k20","expiresDate":"2026-08-17 12:32:54 UTC","expiresAt":1786969974,"date":"2026-08-16 12:32:54 UTC","duration":"1 Day","hwid":"15fdc2801601492c","reason":"Troll Donation Request."}
+{"username":"blac_k20","expiresDate":"2026-08-17 12:32:54 UTC","expiresAt":1786969974,"date":"2026-08-16 12:32:54 UTC","duration":"1 Day","hwid":"15fdc2801601492c","reason":"Troll Donation Request."},
+{"username":"Martim19835","expiresDate":"2026-08-17 12:39:50 UTC","expiresAt":1786970390,"date":"2026-08-16 12:39:50 UTC","duration":"1 Day","hwid":"13e87e98346526c4","reason":"Fake Donation Request"}
 ] }
